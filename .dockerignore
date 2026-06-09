@@ -1,0 +1,77 @@
+# Виртуальное окружение (не нужно копировать в контейнер)
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.pyc
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Файлы окружения и секреты (важно!)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+
+# Логи и временные файлы
+*.log
+*.pid
+*.sqlite3
+*.db
+
+# Тесты и покрытие
+# tests/
+.coverage
+.coverage.*
+.htmlcov/
+.pytest_cache/
+.tox/
+
+# Документация (если не нужна в образе)
+docs/
+mkdocs.yml
+*.md
+!README.md  # но README можно оставить
+
+# Инструменты статического анализа
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Docker файлы (чтобы не копировать сами себя)
+Dockerfile
+.dockerignore
+
+# CI/CD конфиги
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Python упаковка
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Файлы разработки
+docker-compose*.yml
+docker-compose*.yaml
+Makefile
+requirements-dev.txt  # если отдельный файл с dev-зависимостями

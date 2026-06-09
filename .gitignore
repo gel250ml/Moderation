@@ -1,0 +1,38 @@
+# Bytecode и файлы интерпретатора
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Виртуальное окружение
+venv/
+env/
+ENV/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# PyCharm
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Логи и базы данных
+*.log
+*.sql
+*.sqlite3
+*.db
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# Alembic
+alembic/versions/*.pyc
+alembic/versions/__pycache__/
