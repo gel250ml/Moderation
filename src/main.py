@@ -4,6 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from src.database.init_db import init_db
+from src.routes.approve_routes import router as approve_router
 
 
 @asynccontextmanager
@@ -47,3 +48,5 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(approve_router, prefix="/api/v1")
