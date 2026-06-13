@@ -118,3 +118,13 @@ async def verify_moderation_service_key(
             status_code=401,
             detail={"code": "UNAUTHORIZED", "message": "Invalid service key"},
         )
+
+
+async def verify_b2b_service_key(
+    x_service_key: str | None = Header(None, alias="X-Service-Key"),
+) -> None:
+    if not B2B_TO_MOD_KEY or x_service_key != B2B_TO_MOD_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "UNAUTHORIZED", "message": "Invalid service key"},
+        )
