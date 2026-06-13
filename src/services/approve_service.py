@@ -127,7 +127,7 @@ class ApproveService:
 
     def _validate_ticket(self, ticket: ProductModeration, moderator_id: UUID) -> None:
         if ticket.status == self.STATUS_HARD_BLOCKED:
-            raise ConflictException("Product is permanently blocked")
+            raise ForbiddenException("Product is permanently blocked")
         if ticket.status != self.STATUS_IN_REVIEW:
             raise ConflictException("Product is not in review status")
         if ticket.assigned_moderator_id != moderator_id:

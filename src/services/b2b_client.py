@@ -95,3 +95,46 @@ class B2BClient:
                 response.text,
             )
             raise B2BClientError("B2B rejected moderation event")
+
+
+    async def send_blocked_event(
+        self,
+        *,
+        product_id: UUID,
+        ticket_idempotency_key: UUID,
+        hard_block: bool,
+        blocking_reason_id: UUID,
+        blocking_reason_title: str,
+        moderator_comment: str | None,
+        field_reports: list[dict],
+    ) -> None:
+        self._ensure_configured()
+        url = f"{self.base_url}/api/v1/events/moderation"
+        payload = {
+            "idempotency_key": str(ticket_idempotency_key),
+            "product_id": str(product_id),
+            "status": "BLOCKED",
+            "hard_block": hard_block,
+            "blocking_reason": {
+                "id": str(blocking_reason_id),
+                "title": blocking_reason_title,
+                "comment": moderator_comment,
+            },
+            "field_reports": field_reports,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(url, json=payload, headers=self._headers())
+        except httpx.HTTPError as exc:
+            logger.exception("Failed to send BLOCKED event for product %s to B2B", product_id)
+            raise B2BClientError("B2B moderation event request failed") from exc
+
+        if response.status_code not in (200, 202, 204):
+            logger.error(
+                "B2B rejected BLOCKED event for product %s: status=%s body=%s",
+                product_id,
+                response.status_code,
+                response.text,
+            )
+            raise B2BClientError("B2B rejected moderation event")
