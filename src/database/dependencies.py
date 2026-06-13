@@ -34,7 +34,11 @@ def _decode_jwt_payload(token: str) -> dict:
         )
 
 
-def _seller_id_from_authorization(authorization: str | None) -> UUID:
+def _id_from_authorization(
+    authorization: str | None,
+    primary_claim: str,
+    missing_message: str,
+) -> UUID:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
@@ -42,20 +46,36 @@ def _seller_id_from_authorization(authorization: str | None) -> UUID:
         )
 
     payload = _decode_jwt_payload(authorization.split(" ", 1)[1])
-    seller_id = payload.get("seller_id") or payload.get("sub")
-    if seller_id is None:
+    value = payload.get(primary_claim) or payload.get("sub")
+    if value is None:
         raise HTTPException(
             status_code=401,
-            detail={"code": "UNAUTHORIZED", "message": "seller_id is missing from JWT claims"},
+            detail={"code": "UNAUTHORIZED", "message": missing_message},
         )
 
     try:
-        return UUID(str(seller_id))
+        return UUID(str(value))
     except (TypeError, ValueError):
         raise HTTPException(
             status_code=401,
-            detail={"code": "UNAUTHORIZED", "message": "seller_id claim must be UUID"},
+            detail={"code": "UNAUTHORIZED", "message": f"{primary_claim} claim must be UUID"},
         )
+
+
+def _seller_id_from_authorization(authorization: str | None) -> UUID:
+    return _id_from_authorization(
+        authorization=authorization,
+        primary_claim="seller_id",
+        missing_message="seller_id is missing from JWT claims",
+    )
+
+
+def _moderator_id_from_authorization(authorization: str | None) -> UUID:
+    return _id_from_authorization(
+        authorization=authorization,
+        primary_claim="moderator_id",
+        missing_message="moderator_id is missing from JWT claims",
+    )
 
 
 async def get_current_seller_id(
@@ -64,12 +84,19 @@ async def get_current_seller_id(
     return _seller_id_from_authorization(authorization)
 
 
+async def get_current_moderator_id(
+    authorization: str = Header(..., alias="Authorization"),
+) -> UUID:
+    return _moderator_id_from_authorization(authorization)
+
+
 async def get_product_access_context(
     authorization: str | None = Header(None, alias="Authorization"),
     x_service_key: str | None = Header(None, alias="X-Service-Key"),
 ) -> ProductAccessContext:
     if x_service_key is not None:
-        if not B2B_TO_MOD_KEY or x_service_key != B2B_TO_MOD_KEY:
+        allowed_keys = {key for key in (B2B_TO_MOD_KEY, MOD_TO_B2B_KEY) if key}
+        if x_service_key not in allowed_keys:
             raise HTTPException(
                 status_code=401,
                 detail={"code": "UNAUTHORIZED", "message": "Invalid service key"},
@@ -80,6 +107,7 @@ async def get_product_access_context(
         mode="seller",
         seller_id=_seller_id_from_authorization(authorization),
     )
+
 
 async def verify_moderation_service_key(
     x_service_key: str | None = Header(None, alias="X-Service-Key"),
