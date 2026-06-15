@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import HTTPException
-from sqlalchemy import delete, desc, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from src.models.moderation_field_report import ModerationFieldReport
 from src.models.product_moderation import ProductModeration
-from src.schemas.approve import ApproveProductResponse, ModerationTicketResponse
+from src.schemas.approve import ModerationTicketResponse
 from src.services.b2b_client import (
     B2BClient,
     B2BClientError,
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class ApproveService:
     STATUS_IN_REVIEW = "IN_REVIEW"
-    STATUS_MODERATED = "MODERATED"
+    STATUS_APPROVED = "APPROVED"
     STATUS_HARD_BLOCKED = "HARD_BLOCKED"
 
     def __init__(self, session: AsyncSession, b2b_client: B2BClient | None = None):
@@ -39,17 +39,6 @@ class ApproveService:
         ticket = await self._get_ticket_by_id(ticket_id)
         await self._approve(ticket=ticket, moderator_id=moderator_id, comment=comment)
         return ModerationTicketResponse.model_validate(ticket)
-
-    async def approve_by_product_id(
-        self,
-        *,
-        product_id: UUID,
-        moderator_id: UUID,
-        comment: str | None,
-    ) -> ApproveProductResponse:
-        ticket = await self._get_ticket_by_product_id(product_id)
-        await self._approve(ticket=ticket, moderator_id=moderator_id, comment=comment)
-        return ApproveProductResponse(product_id=ticket.product_id, status=ticket.status)
 
     async def _approve(
         self,
@@ -73,7 +62,7 @@ class ApproveService:
             )
 
         now = datetime.now(timezone.utc)
-        ticket.status = self.STATUS_MODERATED
+        ticket.status = self.STATUS_APPROVED
         ticket.decision_at = now
         ticket.date_moderation = now
         ticket.moderator_comment = comment
@@ -107,18 +96,6 @@ class ApproveService:
     async def _get_ticket_by_id(self, ticket_id: UUID) -> ProductModeration:
         result = await self.session.execute(
             select(ProductModeration).where(ProductModeration.id == ticket_id)
-        )
-        ticket = result.scalar_one_or_none()
-        if ticket is None:
-            raise NotFoundException("Product not found in moderation queue")
-        return ticket
-
-    async def _get_ticket_by_product_id(self, product_id: UUID) -> ProductModeration:
-        result = await self.session.execute(
-            select(ProductModeration)
-            .where(ProductModeration.product_id == product_id)
-            .order_by(desc(ProductModeration.created_at))
-            .limit(1)
         )
         ticket = result.scalar_one_or_none()
         if ticket is None:
