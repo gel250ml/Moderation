@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.dependencies import get_db, verify_b2b_service_key
@@ -11,6 +11,7 @@ router = APIRouter(tags=["B2B Events"])
 
 @router.post(
     "/b2b/events",
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=B2BEventResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Invalid request"},

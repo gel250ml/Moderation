@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import datetime
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from unittest.mock import AsyncMock, patch
 
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.blocking_reason import BlockingReason
 from src.models.moderation_field_report import ModerationFieldReport
 from src.models.product_moderation import ProductModeration
+from src.services.b2b_client import B2BClient
 
 
 HARD_REASON_ID = UUID("b8c9d0e1-2345-6789-f012-901234567890")
@@ -244,7 +246,7 @@ async def test_edited_event_on_hard_blocked_is_ignored(
         headers={"X-Service-Key": "b2b-test-key"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     updated = await get_ticket(test_db, ticket.id)
     assert updated is not None
     assert updated.status == "HARD_BLOCKED"
@@ -279,5 +281,73 @@ async def test_deleted_event_removes_hard_blocked(
         headers={"X-Service-Key": "b2b-test-key"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert await count_tickets(test_db, ticket.product_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_send_blocked_event_matches_b2b_openapi_payload(monkeypatch: pytest.MonkeyPatch):
+    captured: dict[str, object] = {}
+
+    class CapturingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, json, headers):
+            captured["url"] = url
+            captured["json"] = json
+            captured["headers"] = headers
+            return httpx.Response(204, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr("src.services.b2b_client.httpx.AsyncClient", CapturingAsyncClient)
+
+    product_id = uuid4()
+    reason_id = uuid4()
+    key = uuid4()
+    client = B2BClient(base_url="http://b2b.local", service_key="mod-key")
+
+    await client.send_blocked_event(
+        product_id=product_id,
+        ticket_idempotency_key=key,
+        hard_block=True,
+        blocking_reason_id=reason_id,
+        blocking_reason_title="Контрафактный товар",
+        moderator_comment="Подтверждённый контрафакт",
+        field_reports=[
+            {
+                "field_name": "description",
+                "sku_id": None,
+                "comment": "Описание нарушает правила",
+            }
+        ],
+    )
+
+    assert captured["url"] == "http://b2b.local/api/v1/moderation/events"
+    assert captured["headers"] == {
+        "Content-Type": "application/json",
+        "X-Service-Key": "mod-key",
+    }
+
+    payload = captured["json"]
+    assert payload["idempotency_key"] == str(key)
+    assert payload["product_id"] == str(product_id)
+    assert payload["event_type"] == "BLOCKED"
+    assert payload["hard_block"] is True
+    assert payload["blocking_reason_id"] == str(reason_id)
+    assert payload["moderator_comment"] == "Подтверждённый контрафакт"
+    assert payload["field_reports"] == [
+        {
+            "field_name": "description",
+            "sku_id": None,
+            "comment": "Описание нарушает правила",
+        }
+    ]
+    assert "status" not in payload
+    assert "blocking_reason" not in payload
+    assert datetime.fromisoformat(payload["occurred_at"])
