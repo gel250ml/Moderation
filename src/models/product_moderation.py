@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, Index, Integer, String, Text, Uuid
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,7 +25,15 @@ class ProductModeration(AsyncAttrs, Base):
     decision_at = Column(DateTime(timezone=True), nullable=True)
     date_moderation = Column(DateTime(timezone=True), nullable=True)
     moderator_comment = Column(Text, nullable=True)
-    blocking_reason_id = Column(Uuid(as_uuid=True), nullable=True)
+    blocking_reason_id = Column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "blocking_reasons.id",
+            name="fk_product_moderation_blocking_reason_id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -40,6 +48,7 @@ class ProductModeration(AsyncAttrs, Base):
         back_populates="product_moderation",
         cascade="all, delete-orphan",
     )
+    blocking_reason = relationship("BlockingReason", back_populates="moderation_tickets")
 
     __table_args__ = (
         Index("idx_product_moderation_product_id", "product_id"),
