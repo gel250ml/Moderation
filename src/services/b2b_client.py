@@ -109,18 +109,16 @@ class B2BClient:
         field_reports: list[dict],
     ) -> None:
         self._ensure_configured()
-        url = f"{self.base_url}/api/v1/events/moderation"
+        url = f"{self.base_url}/api/v1/moderation/events"
         payload = {
             "idempotency_key": str(ticket_idempotency_key),
             "product_id": str(product_id),
-            "status": "BLOCKED",
+            "event_type": "BLOCKED",
             "hard_block": hard_block,
-            "blocking_reason": {
-                "id": str(blocking_reason_id),
-                "title": blocking_reason_title,
-                "comment": moderator_comment,
-            },
+            "blocking_reason_id": str(blocking_reason_id),
+            "moderator_comment": moderator_comment,
             "field_reports": field_reports,
+            "occurred_at": datetime.now(timezone.utc).isoformat(),
         }
 
         try:
