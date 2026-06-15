@@ -8,15 +8,6 @@ class ApproveTicketRequest(BaseModel):
     comment: str | None = Field(default=None, max_length=5000)
 
 
-class ApproveProductRequest(BaseModel):
-    moderator_comment: str | None = Field(default=None, max_length=5000)
-
-
-class ApproveProductResponse(BaseModel):
-    product_id: UUID
-    status: str
-
-
 class ModerationTicketResponse(BaseModel):
     id: UUID
     product_id: UUID

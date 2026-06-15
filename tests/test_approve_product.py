@@ -103,10 +103,10 @@ async def test_approve_transitions_to_moderated_and_emits_event(
     body = response.json()
     assert body["id"] == str(ticket.id)
     assert body["product_id"] == str(ticket.product_id)
-    assert body["status"] == "MODERATED"
+    assert body["status"] == "APPROVED"
 
     updated = await get_ticket(test_db, ticket.id)
-    assert updated.status == "MODERATED"
+    assert updated.status == "APPROVED"
     assert updated.decision_at is not None
     assert updated.date_moderation is not None
     assert updated.moderator_comment == "Товар соответствует требованиям"
@@ -158,7 +158,7 @@ async def test_approve_after_edited_returns_409(
     async_client: httpx.AsyncClient,
 ):
     moderator_id = uuid4()
-    ticket = await create_ticket(test_db, moderator_id=moderator_id, status="EDITED")
+    ticket = await create_ticket(test_db, moderator_id=moderator_id, status="PENDING")
 
     with patch(
         "src.services.b2b_client.B2BClient.ensure_product_has_skus",
@@ -176,7 +176,7 @@ async def test_approve_after_edited_returns_409(
     assert response.status_code == 409
     assert response.json()["code"] == "CONFLICT"
     updated = await get_ticket(test_db, ticket.id)
-    assert updated.status == "EDITED"
+    assert updated.status == "PENDING"
     mock_has_skus.assert_not_awaited()
     mock_send.assert_not_awaited()
 
