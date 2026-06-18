@@ -120,6 +120,17 @@ async def _ensure_schema_compatibility(conn) -> None:
     await conn.execute(
         text(
             """
+            ALTER TABLE product_moderation
+                ADD COLUMN IF NOT EXISTS json_before JSONB,
+                ADD COLUMN IF NOT EXISTS json_after JSONB,
+                ADD COLUMN IF NOT EXISTS source_event_at TIMESTAMPTZ;
+            """
+        )
+    )
+
+    await conn.execute(
+        text(
+            """
             DO $$
             BEGIN
                 IF NOT EXISTS (

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, Uuid
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, Text, Uuid
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -18,6 +18,9 @@ class ProductModeration(AsyncAttrs, Base):
     kind = Column(String(50), nullable=False, default="CREATE")
     status = Column(String(50), nullable=False, default="PENDING")
     queue_priority = Column(Integer, nullable=False, default=0)
+    json_before = Column(JSON, nullable=True)
+    json_after = Column(JSON, nullable=True)
+    source_event_at = Column(DateTime(timezone=True), nullable=True)
 
     assigned_moderator_id = Column(Uuid(as_uuid=True), nullable=True, index=True)
     claimed_at = Column(DateTime(timezone=True), nullable=True)
