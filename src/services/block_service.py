@@ -149,12 +149,15 @@ class BlockService:
 
         unique_reason_ids = list(dict.fromkeys(reason_ids))
         result = await self.session.execute(
-            select(BlockingReason).where(BlockingReason.id.in_(unique_reason_ids))
+            select(BlockingReason).where(
+                BlockingReason.id.in_(unique_reason_ids),
+                BlockingReason.is_active.is_(True),
+            )
         )
         found_by_id = {reason.id: reason for reason in result.scalars().all()}
         missing = [reason_id for reason_id in unique_reason_ids if reason_id not in found_by_id]
         if missing:
-            raise ValidationException("Blocking reason not found")
+            raise ValidationException("Blocking reason not found or inactive")
         return [found_by_id[reason_id] for reason_id in unique_reason_ids]
 
     def _validate_ticket(self, ticket: ProductModeration, moderator_id: UUID) -> None:
