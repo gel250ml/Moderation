@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -32,10 +33,36 @@ class BlockTicketRequest(BaseModel):
     field_reports: list[BlockFieldReportRequest] = Field(default_factory=list)
 
 
+class DeclineFieldName(str, Enum):
+    title = "title"
+    description = "description"
+    product_images = "product_images"
+    category = "category"
+    sku_name = "sku_name"
+    sku_image = "sku_image"
+    sku_price = "sku_price"
+
+
+class DeclineFieldReportRequest(BaseModel):
+    field_name: DeclineFieldName
+    sku_id: UUID | None = None
+    comment: str = Field(..., min_length=1, max_length=500)
+
+    model_config = ConfigDict(extra="forbid")
+
+    def normalized_field_name(self) -> str:
+        return self.field_name.value
+
+    def normalized_comment(self) -> str:
+        return self.comment
+
+
 class DeclineProductRequest(BaseModel):
     blocking_reason_id: UUID
-    moderator_comment: str | None = Field(default=None, max_length=5000)
-    field_reports: list[BlockFieldReportRequest] = Field(default_factory=list)
+    moderator_comment: str = Field(..., min_length=1, max_length=1000)
+    field_reports: list[DeclineFieldReportRequest] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class DeclineProductResponse(BaseModel):

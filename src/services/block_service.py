@@ -12,6 +12,7 @@ from src.models.moderation_field_report import ModerationFieldReport
 from src.models.product_moderation import ProductModeration
 from src.schemas.block import (
     BlockFieldReportRequest,
+    DeclineFieldReportRequest,
     DeclineProductResponse,
     ModerationTicketBlockResponse,
 )
@@ -45,6 +46,7 @@ class BlockService:
             blocking_reason_ids=blocking_reason_ids,
             comment=comment,
             field_reports=field_reports,
+            allow_hard_block=True,
         )
         return ModerationTicketBlockResponse.model_validate(ticket)
 
@@ -54,8 +56,8 @@ class BlockService:
         product_id: UUID,
         moderator_id: UUID,
         blocking_reason_id: UUID,
-        moderator_comment: str | None,
-        field_reports: list[BlockFieldReportRequest],
+        moderator_comment: str,
+        field_reports: list[DeclineFieldReportRequest],
     ) -> DeclineProductResponse:
         ticket = await self._get_ticket_by_product_id(product_id)
         await self._block(
@@ -64,6 +66,7 @@ class BlockService:
             blocking_reason_ids=[blocking_reason_id],
             comment=moderator_comment,
             field_reports=field_reports,
+            allow_hard_block=False,
         )
         return DeclineProductResponse(product_id=ticket.product_id, status=ticket.status)
 
@@ -74,12 +77,16 @@ class BlockService:
         moderator_id: UUID,
         blocking_reason_ids: list[UUID],
         comment: str | None,
-        field_reports: list[BlockFieldReportRequest],
+        field_reports: list[BlockFieldReportRequest] | list[DeclineFieldReportRequest],
+        allow_hard_block: bool,
     ) -> None:
         self._validate_ticket(ticket, moderator_id)
         reasons = await self._get_blocking_reasons(blocking_reason_ids)
         primary_reason = reasons[0]
         hard_block = any(reason.hard_block for reason in reasons)
+        if hard_block and not allow_hard_block:
+            raise ValidationException("Hard-only blocking reason cannot be used for soft block")
+
         next_status = self.STATUS_HARD_BLOCKED if hard_block else self.STATUS_BLOCKED
 
         now = datetime.now(timezone.utc)
@@ -171,7 +178,7 @@ class BlockService:
     @staticmethod
     def _to_db_field_reports(
         ticket_id: UUID,
-        field_reports: list[BlockFieldReportRequest],
+        field_reports: list[BlockFieldReportRequest] | list[DeclineFieldReportRequest],
     ) -> list[ModerationFieldReport]:
         return [
             ModerationFieldReport(
@@ -184,7 +191,9 @@ class BlockService:
         ]
 
     @staticmethod
-    def _to_b2b_field_reports(field_reports: list[BlockFieldReportRequest]) -> list[dict]:
+    def _to_b2b_field_reports(
+        field_reports: list[BlockFieldReportRequest] | list[DeclineFieldReportRequest],
+    ) -> list[dict]:
         return [
             {
                 "field_name": report.normalized_field_name(),
