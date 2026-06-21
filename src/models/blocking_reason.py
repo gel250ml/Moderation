@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, Uuid
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, Uuid
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -12,6 +12,7 @@ class BlockingReason(AsyncAttrs, Base):
     __tablename__ = "blocking_reasons"
 
     id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String(100), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     hard_block = Column(Boolean, nullable=False, default=False)
@@ -29,4 +30,8 @@ class BlockingReason(AsyncAttrs, Base):
         "ProductModeration",
         back_populates="blocking_reason",
         passive_deletes=True,
+    )
+
+    __table_args__ = (
+        Index("ix_blocking_reasons_code", "code", unique=True),
     )

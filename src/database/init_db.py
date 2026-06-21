@@ -13,6 +13,7 @@ from src.models.blocking_reason import BlockingReason
 BLOCKING_REASON_SEED = [
     {
         "id": UUID("a7b8c9d0-1234-5678-ef01-890123456789"),
+        "code": "DESCRIPTION_MISMATCH",
         "title": "Описание не соответствует товару",
         "description": "Мягкая блокировка: описание не соответствует товару",
         "hard_block": False,
@@ -21,6 +22,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("b8c9d0e1-2345-6789-f012-901234567890"),
+        "code": "IMAGE_MISMATCH",
         "title": "Изображение не соответствует товару",
         "description": "Мягкая блокировка: изображение не соответствует товару",
         "hard_block": False,
@@ -29,6 +31,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("c9d0e1f2-3456-7890-0123-012345678901"),
+        "code": "WRONG_CATEGORY",
         "title": "Некорректная категория товара",
         "description": "Мягкая блокировка: некорректная категория товара",
         "hard_block": False,
@@ -37,6 +40,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("d0e1f2a3-4567-8901-1234-123456789012"),
+        "code": "NOT_ENOUGH_INFO",
         "title": "Недостаточно информации о товаре",
         "description": "Мягкая блокировка: недостаточно информации о товаре",
         "hard_block": False,
@@ -45,6 +49,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("e1f2a3b4-5678-9012-2345-234567890123"),
+        "code": "OFFENSIVE_MATERIALS",
         "title": "Нецензурные или оскорбительные материалы",
         "description": "Мягкая блокировка: нецензурные или оскорбительные материалы",
         "hard_block": False,
@@ -53,6 +58,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("f2a3b4c5-6789-0123-3456-345678901234"),
+        "code": "DUPLICATE_PRODUCT",
         "title": "Дублирование существующего товара",
         "description": "Мягкая блокировка: дублирование существующего товара",
         "hard_block": False,
@@ -61,6 +67,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("a3b4c5d6-7890-1234-4567-456789012345"),
+        "code": "INCORRECT_PRICE",
         "title": "Некорректная цена",
         "description": "Мягкая блокировка: некорректная цена",
         "hard_block": False,
@@ -69,6 +76,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("b4c5d6e7-8901-2345-5678-567890123456"),
+        "code": "COUNTERFEIT_PRODUCT",
         "title": "Контрафактный товар",
         "description": "Жёсткая блокировка: контрафактный товар",
         "hard_block": True,
@@ -77,6 +85,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("c5d6e7f8-9012-3456-6789-678901234567"),
+        "code": "PROHIBITED_PRODUCT",
         "title": "Товар запрещён к продаже на территории РФ",
         "description": "Жёсткая блокировка: товар запрещён к продаже на территории РФ",
         "hard_block": True,
@@ -85,6 +94,7 @@ BLOCKING_REASON_SEED = [
     },
     {
         "id": UUID("d6e7f8a9-0123-4567-7890-789012345678"),
+        "code": "COPYRIGHT_VIOLATION",
         "title": "Товар нарушает авторские права",
         "description": "Жёсткая блокировка: товар нарушает авторские права",
         "hard_block": True,
@@ -111,9 +121,40 @@ async def _ensure_schema_compatibility(conn) -> None:
         text(
             """
             ALTER TABLE blocking_reasons
+                ADD COLUMN IF NOT EXISTS code VARCHAR(100),
                 ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+            """
+        )
+    )
+    await conn.execute(
+        text(
+            """
+            UPDATE blocking_reasons
+            SET code = CASE id
+                WHEN 'a7b8c9d0-1234-5678-ef01-890123456789'::uuid THEN 'DESCRIPTION_MISMATCH'
+                WHEN 'b8c9d0e1-2345-6789-f012-901234567890'::uuid THEN 'IMAGE_MISMATCH'
+                WHEN 'c9d0e1f2-3456-7890-0123-012345678901'::uuid THEN 'WRONG_CATEGORY'
+                WHEN 'd0e1f2a3-4567-8901-1234-123456789012'::uuid THEN 'NOT_ENOUGH_INFO'
+                WHEN 'e1f2a3b4-5678-9012-2345-234567890123'::uuid THEN 'OFFENSIVE_MATERIALS'
+                WHEN 'f2a3b4c5-6789-0123-3456-345678901234'::uuid THEN 'DUPLICATE_PRODUCT'
+                WHEN 'a3b4c5d6-7890-1234-4567-456789012345'::uuid THEN 'INCORRECT_PRICE'
+                WHEN 'b4c5d6e7-8901-2345-5678-567890123456'::uuid THEN 'COUNTERFEIT_PRODUCT'
+                WHEN 'c5d6e7f8-9012-3456-6789-678901234567'::uuid THEN 'PROHIBITED_PRODUCT'
+                WHEN 'd6e7f8a9-0123-4567-7890-789012345678'::uuid THEN 'COPYRIGHT_VIOLATION'
+                ELSE code
+            END;
+
+            UPDATE blocking_reasons
+            SET code = 'LEGACY_' || replace(id::text, '-', '_')
+            WHERE code IS NULL;
+
+            ALTER TABLE blocking_reasons
+                ALTER COLUMN code SET NOT NULL;
+
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_blocking_reasons_code
+                ON blocking_reasons (code);
             """
         )
     )
@@ -162,6 +203,7 @@ async def seed_blocking_reasons() -> None:
                 continue
 
             reason.title = seed["title"]
+            reason.code = seed["code"]
             reason.description = seed["description"]
             reason.hard_block = seed["hard_block"]
             reason.is_active = seed["is_active"]
