@@ -8,6 +8,7 @@ from src.routes.approve_routes import router as approve_router
 from src.routes.block_routes import router as block_router
 from src.routes.b2b_event_routes import router as b2b_event_router
 from src.routes.blocking_reason_routes import router as blocking_reason_router
+from src.routes.queue_routes import router as queue_router
 
 
 @asynccontextmanager
@@ -55,4 +56,5 @@ app.add_middleware(
 app.include_router(approve_router, prefix="/api/v1")
 app.include_router(block_router, prefix="/api/v1")
 app.include_router(blocking_reason_router, prefix="/api/v1")
+app.include_router(queue_router, prefix="/api/v1")
 app.include_router(b2b_event_router, prefix="/api/v1")
