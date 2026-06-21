@@ -147,10 +147,10 @@ async def test_hard_block_event_carries_hard_block_true(
         new_callable=AsyncMock,
     ) as mock_send:
         response = await async_client.post(
-            f"/api/v1/products/{ticket.product_id}/decline",
+            f"/api/v1/tickets/{ticket.id}/block",
             json={
-                "blocking_reason_id": str(reason.id),
-                "moderator_comment": "Контрафакт",
+                "blocking_reason_ids": [str(reason.id)],
+                "comment": "Контрафакт",
                 "field_reports": [
                     {
                         "field_path": "images[0].url",
@@ -163,7 +163,10 @@ async def test_hard_block_event_carries_hard_block_true(
         )
 
     assert response.status_code == 200
-    assert response.json() == {"product_id": str(ticket.product_id), "status": "HARD_BLOCKED"}
+    body = response.json()
+    assert body["id"] == str(ticket.id)
+    assert body["product_id"] == str(ticket.product_id)
+    assert body["status"] == "HARD_BLOCKED"
 
     kwargs = mock_send.await_args.kwargs
     assert kwargs["hard_block"] is True
@@ -338,6 +341,7 @@ async def test_send_blocked_event_matches_b2b_openapi_payload(monkeypatch: pytes
     assert payload["idempotency_key"] == str(key)
     assert payload["product_id"] == str(product_id)
     assert payload["event_type"] == "BLOCKED"
+    assert payload["status"] == "BLOCKED"
     assert payload["hard_block"] is True
     assert payload["blocking_reason_id"] == str(reason_id)
     assert payload["moderator_comment"] == "Подтверждённый контрафакт"
@@ -348,6 +352,7 @@ async def test_send_blocked_event_matches_b2b_openapi_payload(monkeypatch: pytes
             "comment": "Описание нарушает правила",
         }
     ]
-    assert "status" not in payload
-    assert "blocking_reason" not in payload
+    assert payload["blocking_reason"]["id"] == str(reason_id)
+    assert payload["blocking_reason"]["title"]
+    assert payload["blocking_reason"]["comment"] == payload["moderator_comment"]
     assert datetime.fromisoformat(payload["occurred_at"])

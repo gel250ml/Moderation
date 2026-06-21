@@ -114,9 +114,15 @@ class B2BClient:
             "idempotency_key": str(ticket_idempotency_key),
             "product_id": str(product_id),
             "event_type": "BLOCKED",
+            "status": "BLOCKED",
             "hard_block": hard_block,
             "blocking_reason_id": str(blocking_reason_id),
             "moderator_comment": moderator_comment,
+            "blocking_reason": {
+                "id": str(blocking_reason_id),
+                "title": blocking_reason_title,
+                "comment": moderator_comment,
+            },
             "field_reports": field_reports,
             "occurred_at": datetime.now(timezone.utc).isoformat(),
         }
