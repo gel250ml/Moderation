@@ -19,3 +19,16 @@ MOD_TO_B2B_KEY = os.getenv("MOD_TO_B2B_KEY")
 
 B2C_URL = os.getenv("B2C_URL")
 B2B_TO_B2C_KEY = os.getenv("B2B_TO_B2C_KEY")
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return max(1, int(raw))
+    except (TypeError, ValueError):
+        return default
+
+
+MODERATION_IN_REVIEW_TIMEOUT_MINUTES = _int_env("MODERATION_IN_REVIEW_TIMEOUT_MINUTES", 30)
