@@ -43,6 +43,7 @@ class BlockingReasonService:
         return reason
 
     async def create_reason(self, data: BlockingReasonCreateRequest) -> BlockingReason:
+        await self._ensure_code_is_unique(data.code)
         reason = BlockingReason(**data.model_dump())
         self.session.add(reason)
         await self.session.commit()
@@ -55,7 +56,10 @@ class BlockingReasonService:
         data: BlockingReasonUpdateRequest,
     ) -> BlockingReason:
         reason = await self.get_reason(reason_id)
-        for field, value in data.model_dump(exclude_unset=True).items():
+        update_data = data.model_dump(exclude_unset=True)
+        if "code" in update_data:
+            await self._ensure_code_is_unique(update_data["code"], exclude_reason_id=reason_id)
+        for field, value in update_data.items():
             setattr(reason, field, value)
 
         self.session.add(reason)
@@ -82,3 +86,17 @@ class BlockingReasonService:
             raise ConflictException(
                 "Blocking reason is referenced by moderation history and cannot be physically deleted"
             )
+
+    async def _ensure_code_is_unique(
+        self,
+        code: str,
+        *,
+        exclude_reason_id: UUID | None = None,
+    ) -> None:
+        stmt = select(BlockingReason.id).where(BlockingReason.code == code)
+        if exclude_reason_id is not None:
+            stmt = stmt.where(BlockingReason.id != exclude_reason_id)
+
+        result = await self.session.execute(stmt.limit(1))
+        if result.scalar_one_or_none() is not None:
+            raise ConflictException("Blocking reason code already exists")

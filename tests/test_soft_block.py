@@ -57,6 +57,7 @@ async def create_reason(
 ) -> BlockingReason:
     reason = BlockingReason(
         id=uuid4(),
+        code="HARD_REASON" if hard_block else "SOFT_REASON",
         title="Reason",
         description="Reason description",
         hard_block=hard_block,

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.dependencies import get_db
@@ -19,11 +19,11 @@ router = APIRouter(tags=["BlockingReasons"])
 @router.get(
     "/blocking-reasons",
     response_model=list[BlockingReasonResponse],
-    responses={200: {"description": "Список причин"}},
+    responses={200: {"description": "Blocking reasons list"}},
 )
 async def list_blocking_reasons(
-    hard_block: bool | None = Query(default=None, description="Фильтр по типу"),
-    is_active: bool | None = Query(default=True, description="Фильтр по активности"),
+    hard_block: bool | None = Query(default=None, description="Filter by block type"),
+    is_active: bool | None = Query(default=True, description="Filter by active state"),
     db: AsyncSession = Depends(get_db),
 ) -> list[BlockingReasonResponse]:
     service = BlockingReasonService(db)
@@ -47,7 +47,7 @@ async def list_product_blocking_reasons_alias(
 @router.get(
     "/admin/blocking-reasons",
     response_model=list[BlockingReasonAdminResponse],
-    responses={200: {"description": "Админский список причин, включая неактивные"}},
+    include_in_schema=False,
 )
 async def admin_list_blocking_reasons(
     hard_block: bool | None = Query(default=None),
@@ -59,41 +59,64 @@ async def admin_list_blocking_reasons(
 
 
 @router.post(
+    "/blocking-reasons",
+    status_code=status.HTTP_201_CREATED,
+    response_model=BlockingReasonResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        409: {"model": ErrorResponse, "description": "Blocking reason code already exists"},
+    },
+)
+@router.post(
     "/admin/blocking-reasons",
     status_code=status.HTTP_201_CREATED,
-    response_model=BlockingReasonAdminResponse,
-    responses={400: {"model": ErrorResponse, "description": "Invalid request"}},
+    response_model=BlockingReasonResponse,
+    include_in_schema=False,
 )
 async def admin_create_blocking_reason(
     data: BlockingReasonCreateRequest,
     db: AsyncSession = Depends(get_db),
-) -> BlockingReasonAdminResponse:
+) -> BlockingReasonResponse:
     service = BlockingReasonService(db)
     return await service.create_reason(data)
 
 
 @router.patch(
+    "/blocking-reasons/{reason_id}",
+    response_model=BlockingReasonResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Blocking reason not found"},
+        409: {"model": ErrorResponse, "description": "Blocking reason code already exists"},
+    },
+)
+@router.patch(
     "/admin/blocking-reasons/{reason_id}",
-    response_model=BlockingReasonAdminResponse,
-    responses={404: {"model": ErrorResponse, "description": "Blocking reason not found"}},
+    response_model=BlockingReasonResponse,
+    include_in_schema=False,
 )
 async def admin_update_blocking_reason(
     reason_id: UUID,
     data: BlockingReasonUpdateRequest,
     db: AsyncSession = Depends(get_db),
-) -> BlockingReasonAdminResponse:
+) -> BlockingReasonResponse:
     service = BlockingReasonService(db)
     return await service.update_reason(reason_id, data)
 
 
 @router.delete(
-    "/admin/blocking-reasons/{reason_id}",
-    response_model=BlockingReasonAdminResponse,
+    "/blocking-reasons/{reason_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={404: {"model": ErrorResponse, "description": "Blocking reason not found"}},
+)
+@router.delete(
+    "/admin/blocking-reasons/{reason_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    include_in_schema=False,
 )
 async def admin_deactivate_blocking_reason(
     reason_id: UUID,
     db: AsyncSession = Depends(get_db),
-) -> BlockingReasonAdminResponse:
+) -> Response:
     service = BlockingReasonService(db)
-    return await service.deactivate_reason(reason_id)
+    await service.deactivate_reason(reason_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -58,6 +58,7 @@ async def create_ticket(
 async def create_hard_reason(test_db: AsyncSession) -> BlockingReason:
     reason = BlockingReason(
         id=HARD_REASON_ID,
+        code="COUNTERFEIT_PRODUCT",
         title="Контрафактный товар",
         description="Жёсткая блокировка: контрафактный товар",
         hard_block=True,
