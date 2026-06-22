@@ -7,43 +7,51 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.models.product_moderation import ProductModeration
 
 
-class GetNextQueueRequest(BaseModel):
-    queue_id: int | None = Field(default=None, alias="queueId", ge=1, le=4)
+class QueueClaimRequest(BaseModel):
+    queue_priority: int | None = Field(default=None, ge=1, le=4)
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
 
 
-class GetNextQueueResponse(BaseModel):
-    product_moderation_id: UUID
+class TicketResponse(BaseModel):
+    id: UUID
     product_id: UUID
     seller_id: UUID
+    category_id: UUID | None = None
+    kind: str
     status: str
     queue_priority: int
     json_before: dict[str, Any] | None = None
     json_after: dict[str, Any] | None = None
     blocking_history: dict[str, Any] | None = None
-    date_created: datetime
-    date_updated: datetime
     assigned_moderator_id: UUID | None = None
     claimed_at: datetime | None = None
     claim_expires_at: datetime | None = None
+    decision_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
     @classmethod
-    def from_ticket(cls, ticket: ProductModeration) -> "GetNextQueueResponse":
+    def from_ticket(cls, ticket: ProductModeration) -> "TicketResponse":
         return cls(
-            product_moderation_id=ticket.id,
+            id=ticket.id,
             product_id=ticket.product_id,
             seller_id=ticket.seller_id,
+            category_id=ticket.category_id,
+            kind=ticket.kind,
             status=ticket.status,
             queue_priority=ticket.queue_priority,
             json_before=ticket.json_before,
             json_after=ticket.json_after,
             blocking_history=cls._blocking_history_from_ticket(ticket),
-            date_created=ticket.created_at,
-            date_updated=ticket.updated_at,
             assigned_moderator_id=ticket.assigned_moderator_id,
             claimed_at=ticket.claimed_at,
             claim_expires_at=ticket.claim_expires_at,
+            decision_at=ticket.decision_at,
+            created_at=ticket.created_at,
+            updated_at=ticket.updated_at,
         )
 
     @staticmethod
@@ -80,3 +88,8 @@ class GetNextQueueResponse(BaseModel):
             "field_reports": field_reports,
             "date_blocked": date_blocked,
         }
+
+
+# Backward-compatible aliases for internal imports in older local tests/code.
+GetNextQueueRequest = QueueClaimRequest
+GetNextQueueResponse = TicketResponse
