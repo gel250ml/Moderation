@@ -21,7 +21,7 @@ class QueueService:
         self,
         *,
         moderator_id: UUID,
-        queue_id: int | None = None,
+        queue_priority: int | None = None,
     ) -> ProductModeration | None:
         now = datetime.now(timezone.utc)
         await self._return_expired_reviews(now)
@@ -35,7 +35,7 @@ class QueueService:
                 },
             )
 
-        for priority in self._priorities_to_scan(queue_id):
+        for priority in self._priorities_to_scan(queue_priority):
             claimed = await self._claim_oldest_pending_card(
                 moderator_id=moderator_id,
                 queue_priority=priority,
@@ -140,7 +140,7 @@ class QueueService:
 
         return candidate
 
-    def _priorities_to_scan(self, queue_id: int | None) -> tuple[int, ...]:
-        if queue_id is None:
+    def _priorities_to_scan(self, queue_priority: int | None) -> tuple[int, ...]:
+        if queue_priority is None:
             return self.QUEUE_PRIORITIES
-        return (queue_id,)
+        return (queue_priority,)

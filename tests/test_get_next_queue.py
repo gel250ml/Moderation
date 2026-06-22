@@ -104,13 +104,13 @@ async def test_next_returns_oldest_pending(
     )
 
     response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(moderator_id),
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["product_moderation_id"] == str(oldest.id)
+    assert body["id"] == str(oldest.id)
     assert body["product_id"] == str(oldest.product_id)
     assert body["status"] == "IN_REVIEW"
     assert body["queue_priority"] == 1
@@ -141,19 +141,19 @@ async def test_concurrent_two_moderators_get_different_cards(
     second_moderator = uuid4()
 
     first_response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(first_moderator),
     )
     second_response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(second_moderator),
     )
 
     assert first_response.status_code == 200
     assert second_response.status_code == 200
     claimed_ids = {
-        first_response.json()["product_moderation_id"],
-        second_response.json()["product_moderation_id"],
+        first_response.json()["id"],
+        second_response.json()["id"],
     }
     assert claimed_ids == {str(first.id), str(second.id)}
     assert len(claimed_ids) == 2
@@ -161,7 +161,7 @@ async def test_concurrent_two_moderators_get_different_cards(
 
 async def test_empty_queue_returns_204(async_client: httpx.AsyncClient):
     response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(uuid4()),
     )
 
@@ -185,7 +185,7 @@ async def test_moderator_already_has_in_review_returns_409(
     pending = await create_ticket(test_db)
 
     response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(moderator_id),
     )
 
@@ -197,8 +197,8 @@ async def test_moderator_already_has_in_review_returns_409(
 
 async def test_invalid_queue_id_returns_400(async_client: httpx.AsyncClient):
     response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
-        json={"queueId": 5},
+        "/api/v1/queue/claim",
+        json={"queue_priority": 5},
         headers=auth_headers(uuid4()),
     )
 
@@ -223,12 +223,12 @@ async def test_expired_in_review_returns_to_queue(
     )
 
     response = await async_client.post(
-        "/api/v1/product-moderation/get-next",
+        "/api/v1/queue/claim",
         headers=auth_headers(new_moderator_id),
     )
 
     assert response.status_code == 200
-    assert response.json()["product_moderation_id"] == str(stale_ticket.id)
+    assert response.json()["id"] == str(stale_ticket.id)
     updated = await get_ticket(test_db, stale_ticket.id)
     assert updated.status == "IN_REVIEW"
     assert updated.assigned_moderator_id == new_moderator_id
